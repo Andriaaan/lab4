@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "var-1"
+version = "0.0.1"
+description = "none"
+authors = ["Your Name <you@example.com>"]
+license = "n"
+readme = "README.md"
+packages = [{include = "var_1"}]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+pymssql = "^2.2.5"
+flask = "^2.2.2"
+sqlalchemy = "^1.4.43"
+alembic = "^1.8.1"
+marshmallow = "^3.18.0"
+flask-bcrypt = "^1.0.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
