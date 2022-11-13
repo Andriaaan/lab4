@@ -31,4 +31,6 @@
 *.out
 *.app
 
-__pycache__/
+__pycache__
+Lib
+.idea
