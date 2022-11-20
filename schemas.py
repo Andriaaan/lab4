@@ -1,21 +1,49 @@
-from marshmallow import validate, Schema, fields
+from marshmallow import validate, Schema, fields, ValidationError
 from flask_bcrypt import generate_password_hash
 
-class UserSchema(Schema):
-    id = fields.Integer()
+from models import *
+
+
+def validate_email(emeil1):
+    if not (session.query(User).filter(User.email == emeil1).count() == 0):
+        raise ValidationError("Email exists")
+
+
+def validate_username(username):
+    if not (session.query(User).filter(User.username == username).count() == 0):
+        raise ValidationError("Username exists")
+
+
+class UserInfo(Schema):
     username = fields.String()
     firstname = fields.String()
     lastname = fields.String()
-    email = fields.String(validate=validate.Email())
+    phone = fields.Integer()
+
+
+class UserRegister(Schema):
+    username = fields.String()
+    firstname = fields.String()
+    lastname = fields.String()
+    email = fields.Email(validate=validate_email)
     password = fields.Function(
         deserialize=lambda obj: generate_password_hash(obj), load_only=True
     )
     phone = fields.Integer()
 
+
+class UserToUpdate(Schema):
+    email = fields.Email(validate=validate_email)
+    password = fields.Function(
+        deserialize=lambda obj: generate_password_hash(obj), load_only=True
+    )
+
+
 class PaymethodSchema(Schema):
     cardNumber = fields.String()
     balance = fields.Integer()
     user_id = fields.Integer()
+
 
 class PaymethodReturnSchema(Schema):
     id = fields.Integer()
@@ -23,14 +51,17 @@ class PaymethodReturnSchema(Schema):
     balance = fields.Integer()
     user_id = fields.Integer()
 
+
 class PaymethodAddSchema(Schema):
     cardNumber = fields.String()
     balance = fields.Integer()
+
 
 class PaymethodEditSchema(Schema):
     cardNumber = fields.String()
     balance = fields.Integer()
     user_id = fields.Integer()
+
 
 class TransferSchema(Schema):
     transferValue = fields.Integer()
@@ -38,6 +69,7 @@ class TransferSchema(Schema):
     status = fields.String()
     source_paymethod_id = fields.Integer()
     destination_paymethod_id = fields.Integer()
+
 
 class TransferAddSchema(Schema):
     transferValue = fields.Integer()

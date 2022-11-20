@@ -1,7 +1,7 @@
-from sqlalchemy import create_engine, Column, Enum, Integer, String, ForeignKey, DATE, DECIMAL
+from sqlalchemy import create_engine, Column, Enum, Integer, String, ForeignKey, DATETIME, DECIMAL, Boolean
 from sqlalchemy.orm import declarative_base, sessionmaker, scoped_session
 
-engine = create_engine('mssql+pymssql://sa:Pass123!@localhost/pp_var_1')
+engine = create_engine('mysql://root:759486@localhost/pp7')
 SessionFactory = sessionmaker(bind=engine)
 session = scoped_session(SessionFactory)
 Base = declarative_base()
@@ -17,6 +17,7 @@ class User(Base):
     email = Column('email', String(45))
     password = Column('password', String(500))
     phone = Column('phone', String(45))
+    isAdmin = Column('isAdmin', Boolean)
 
 
 class Paymethod(Base):
@@ -32,7 +33,7 @@ class Transfer(Base):
     __tablename__ = "Transfer"
 
     transferValue = Column('transferValue', DECIMAL(10, 2))
-    datetime = Column('datetime', DATE)
+    datetime = Column('datetime', DATETIME)
     status = Column('status', Enum('failed', 'approved', 'denied'))
     source_paymethod_id = Column("source_paymethod_id", Integer, ForeignKey(Paymethod.id))
     destination_paymethod_id = Column("destination_paymethod_id", Integer, ForeignKey(Paymethod.id))
