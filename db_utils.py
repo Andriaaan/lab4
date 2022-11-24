@@ -1,5 +1,6 @@
 from models import *
 
+
 def create_entry(model_class, *, commit=True, **kwargs):
     entry = model_class(**kwargs)
     session.add(entry)
