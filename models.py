@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine, Column, Enum, Integer, String, ForeignKey, DATETIME, DECIMAL, Boolean
 from sqlalchemy.orm import declarative_base, sessionmaker, scoped_session
 
-engine = create_engine('mysql://root:759486@localhost/pp7')
+engine = create_engine('mysql://root:ab?sad132FF..@localhost:3306/mydb')
 SessionFactory = sessionmaker(bind=engine)
 session = scoped_session(SessionFactory)
 Base = declarative_base()

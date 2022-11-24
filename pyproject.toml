@@ -15,6 +15,10 @@ sqlalchemy = "^1.4.43"
 alembic = "^1.8.1"
 marshmallow = "^3.18.0"
 flask-bcrypt = "^1.0.1"
+Flask-HTTPAuth = "^4.7.0"
+mysqlclient = "^2.1.1"
+coverage = "^6.5.0"
+Flask-Testing = "^0.8.1"
 
 
 [build-system]

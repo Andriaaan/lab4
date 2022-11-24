@@ -1,19 +1,18 @@
-from flask import Flask, request, jsonify, json, make_response
+from flask import Flask, request, jsonify
 from flask_bcrypt import check_password_hash
 from sqlalchemy import exc
-from marshmallow import validate, ValidationError
 import db_utils
-from db_utils import *
-from models import *
-from db_utils import *
 from schemas import *
 from datetime import datetime
 from flask_httpauth import HTTPBasicAuth
+import json
 
 app = Flask(__name__)
 auth = HTTPBasicAuth()
 
-# basic authorization ------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# basic authorization
+# ------------------------------------------------------------------------------------------------------------------------------------------------------
 
 @auth.verify_password
 def verify_password(username, password):
@@ -21,14 +20,16 @@ def verify_password(username, password):
         user = session.query(User).filter_by(email=username).one()
         if check_password_hash(user.password, password):
             return username
+        else:
+            return False
     except exc.NoResultFound:
         return False
 
 
 @auth.get_user_roles
-def get_user_roles(user):
+def get_user_roles(username):
     try:
-        user_db = session.query(User).filter_by(email=user).one()
+        user_db = session.query(User).filter_by(email=username).one()
         if user_db.isAdmin:
             return 'admin'
         else:
@@ -37,7 +38,8 @@ def get_user_roles(user):
         return ''
 
 
-# USER ------------------------------------------------------------------------------------------------------------------------------------------------------
+# USER
+# ------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 @app.route("/user", methods=['POST'])
@@ -46,8 +48,8 @@ def create_user():
         user_data = UserRegister().load(request.json)
         user = db_utils.create_entry(User, **user_data)
         return jsonify(UserInfo().dump(user))
-    except ValidationError as err:
-        return str(err), 400
+    except ValidationError:
+        return jsonify({"Error": "Validation error"}), 400
 
 
 @app.route("/user/<user_id>/", methods=['GET'])
@@ -57,7 +59,7 @@ def get_user(user_id):
         user = db_utils.get_entry_byid(User, user_id)
         return jsonify(UserInfo().dump(user)), 200
     except exc.NoResultFound:
-        return "User not found", 404
+        return jsonify({"Error": "User not found"}), 404
 
 
 @app.route("/user/<user_id>", methods=['PUT'])
@@ -69,11 +71,9 @@ def update_user(user_id):
             user = db_utils.get_entry_byid(User, user_id)
             db_utils.update_entry(user, **user_data)
             return "User updated", 200
-        return "Not enough rights", 404
-    except exc.NoResultFound:
-        return "User not found", 404
-    except ValidationError as err:
-        return str(err), 400
+        return jsonify({"Error": "Not enough rights"}), 401
+    except ValidationError:
+        return jsonify({"Error": "Validation error"}), 400
 
 
 @app.route("/user/<user_id>", methods=['DELETE'])
@@ -85,12 +85,13 @@ def delete_user(user_id):
             session.query(User).filter(User.id == user_id).delete()
             session.commit()
             return "User deleted", 200
-        return "Not enough rights", 404
+        return jsonify({"Error": "Not enough rights"}), 403
     except exc.NoResultFound:
         return "User not found", 404
 
 
-# HISTORY ------------------------------------------------------------------------------------------------------------------------------------------------------
+# HISTORY
+# ------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 @app.route("/user/<user_id>/history", methods=['GET'])
@@ -112,16 +113,15 @@ def get_user_history(user_id):
         return "No content", 204
 
 
-# PAYMETHOD Admin ------------------------------------------------------------------------------------------------------------------------------------------------------
+# PAYMETHOD Admin
+# ------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 @app.route("/user/<user_id>/paymethods", methods=['GET', 'POST'])
 @auth.login_required(role='admin')
 def user_paymethods(user_id):
-    if session.query(User).filter(User.id == user_id, User.email == auth.current_user()).count() == 0:
-        return "Not enough rights", 404
     if not is_user_exist(user_id):
-        return "User not found", 404
+        return jsonify({"Error": "User not found"}), 404
 
     if request.method == 'GET':
         if session.query(Paymethod).filter_by(user_id=user_id).count() > 0:
@@ -134,34 +134,34 @@ def user_paymethods(user_id):
         cardnumber = request.json.get('cardNumber')
         balance = request.json.get('balance')
         if is_cardnumber_exist(cardnumber):
-            return "Paymethod with this cardnumber currently exists", 409
+            return jsonify({"Error": "Paymethod with this cardnumber currently exists"}), 409
         try:
             if cardnumber is None or not cardnumber.isdigit():
-                return "Wrong cardnumber", 400
+                return jsonify({"Error": "Wrong card number"}), 400
             if balance is None or balance < 0:
-                return "Wrong balance", 400
+                return jsonify({"Error": "Wrong balance"}), 400
+
             paymetod = Paymethod(balance=balance, cardNumber=cardnumber, user_id=user_id)
             session.add(paymetod)
             session.commit()
             return jsonify(PaymethodReturnSchema().dump(paymetod)), 200
         except ValidationError as err:
             return str(err), 400
-        return 'POST'
 
 
-# PAYMETHOD User ------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# PAYMETHOD User
+# ------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 @app.route("/user/<user_id>/paymethods/<paymethod_id>", methods=['PUT', 'DELETE', 'GET'])
 @auth.login_required
 def user_paymethods_edit(user_id, paymethod_id):
     if session.query(User).filter(User.id == user_id, User.email == auth.current_user()).count() == 0:
-        return "Not enough rights", 404
-    if not is_user_exist(user_id):
-        return "User not found", 404
+        return "Not enough rights", 401
 
     if not is_user_paymethod_exist(paymethod_id, user_id):
-        return "Paymethod not found", 404
+        return jsonify({"Error": "Paymethod not found"}), 404
 
     if request.method == 'GET':
         paymethod = db_utils.get_entry_byid(Paymethod, paymethod_id)
@@ -170,9 +170,9 @@ def user_paymethods_edit(user_id, paymethod_id):
     if request.method == 'PUT':
         try:
             paymethod_data = PaymethodEditSchema().load(request.json)
-            if not validate_paymethod(paymethod_data.get('cardNumber'), paymethod_data.get('balance'),
+            if validate_paymethod(paymethod_data.get('cardNumber'), paymethod_data.get('balance'),
                                       paymethod_data.get('user_id')):
-                return "Conflict", 409
+                return jsonify({"Error": "Conflict"}), 409
             paymethod = db_utils.get_entry_byid(Paymethod, paymethod_id)
             db_utils.update_entry(paymethod, **paymethod_data)
             return "Successfuly added", 200
@@ -185,7 +185,8 @@ def user_paymethods_edit(user_id, paymethod_id):
         return "Successfuly deleted", 200
 
 
-# TRANSFER ------------------------------------------------------------------------------------------------------------------------------------------------------
+# TRANSFER
+# ------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 @app.route("/user/<user_id>/money-transfer", methods=['POST'])
@@ -209,13 +210,13 @@ def create_money_transfer(user_id):
         return "Paymethod not found", 404
 
     if source_id == dest_id:
-        return "Paymethods are identical", 405
+        return jsonify({"Error": "Paymethods are identical"}), 405
 
     source_payment = session.query(Paymethod).filter_by(id=source_id).one()
     dest_payment = session.query(Paymethod).filter_by(id=dest_id).one()
 
     if source_payment.balance < transfer_value:
-        return "Source paymethod don't have enough balance", 403
+        return jsonify({"Error": "Source paymethod don't have enough balance"}), 403
 
     source_payment.balance -= transfer_value
     dest_payment.balance += transfer_value
@@ -228,7 +229,8 @@ def create_money_transfer(user_id):
     return "Scuccessful operation", 200
 
 
-# verification functions ------------------------------------------------------------------------------------------------------------------------------------------------------
+# verification functions
+# ------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 def is_user_exist(user_id):
@@ -271,10 +273,6 @@ def is_cardnumber_exist(cardNumber):
 
 
 def validate_paymethod(cardnumber, balance, user_id):
-    print(cardnumber)
-    print(balance)
-    print(user_id)
-    print(is_user_exist(user_id) and not is_cardnumber_exist(cardnumber) and balance >= 0)
     return (user_id is None or is_user_exist(user_id)) and (
             cardnumber is None or not is_cardnumber_exist(cardnumber)) and (balance is None or balance >= 0)
 

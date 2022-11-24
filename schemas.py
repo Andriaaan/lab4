@@ -18,7 +18,7 @@ class UserInfo(Schema):
     username = fields.String()
     firstname = fields.String()
     lastname = fields.String()
-    phone = fields.Integer()
+    phone = fields.String()
 
 
 class UserRegister(Schema):
